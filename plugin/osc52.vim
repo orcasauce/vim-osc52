@@ -29,17 +29,7 @@ let g:max_osc52_sequence=100000
 
 " Sends a string to the terminal's clipboard using the OSC 52 sequence.
 function! SendViaOSC52(str)
-  if get(g:, 'osc52_term', 'tmux') == 'tmux'
-    let osc52 = s:get_OSC52_tmux(a:str)
-  elseif get(g:, 'osc52_term', 'tmux') == 'screen'
-    let osc52 = s:get_OSC52_DCS(a:str)
-  elseif !empty($TMUX)
-    let osc52 = s:get_OSC52_tmux(a:str)
-  elseif match($TERM, 'screen') > -1
-    let osc52 = s:get_OSC52_DCS(a:str)
-  else
-    let osc52 = s:get_OSC52(a:str)
-  endif
+  let osc52 = s:get_OSC52(a:str)
 
   let len = strlen(osc52)
   if len < g:max_osc52_sequence
@@ -56,42 +46,6 @@ function! s:get_OSC52(str)
   let b64 = s:b64encode(a:str, 0)
   let rv = "\e]52;c;" . b64 . "\x07"
   return rv
-endfun
-
-" base64s the entire string and wraps it in a single OSC52 for tmux.
-"
-" This is for `tmux` sessions which filters OSC 52 locally.
-function! s:get_OSC52_tmux(str)
-  let b64 = s:b64encode(a:str, 0)
-  let rv = "\ePtmux;\e\e]52;c;" . b64 . "\x07\e\\"
-  return rv
-endfun
-
-" base64s the entire source, wraps it in a single OSC52, and then
-" breaks the result in small chunks which are each wrapped in a DCS sequence.
-"
-" This is appropriate when running on `screen`.  Screen doesn't support OSC 52,
-" but will pass the contents of a DCS sequence to the outer terminal unmolested.
-" It imposes a small max length to DCS sequences, so we send in chunks.
-function! s:get_OSC52_DCS(str)
-  let b64 = s:b64encode(a:str, 76)
-
-  " Remove the trailing newline.
-  let b64 = substitute(b64, '\n*$', '', '')
-
-  " Replace each newline with an <end-dcs><start-dcs> pair.
-  let b64 = substitute(b64, '\n', "\e/\eP", "g")
-
-  " (except end-of-dcs is "ESC \", begin is "ESC P", and I can't figure out
-  "  how to express "ESC \ ESC P" in a single string.  So, the first substitute
-  "  uses "ESC / ESC P", and the second one swaps out the "/".  It seems like
-  "  there should be a better way.)
-  let b64 = substitute(b64, '/', '\', 'g')
-
-  " Now wrap the whole thing in <start-dcs><start-osc52>...<end-osc52><end-dcs>.
-  let b64 = "\eP\e]52;c;" . b64 . "\x07\e\x5c"
-
-  return b64
 endfun
 
 " Echoes a string to the terminal without munging the escape sequences.
