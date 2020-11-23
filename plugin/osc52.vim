@@ -51,20 +51,7 @@ endfun
 " Echoes a string to the terminal without munging the escape sequences.
 "
 function! s:rawecho(str)
-  let redraw = get(g:, 'osc52_redraw', 2)
-  let print  = get(g:, 'osc52_print', 'echo')
-  if print == 'echo'
-    exe "silent! !echo" shellescape(a:str)
-  elseif print == 'printf'
-    exe "silent! !printf \\%s" shellescape(a:str)
-  else
-    exe print shellescape(a:str)
-  endif
-  if redraw == 2
-    redraw!
-  elseif redraw == 1
-    redraw
-  endif
+    call chansend(v:stderr, a:str)
 endfun
 
 " Lookup table for s:b64encode.
